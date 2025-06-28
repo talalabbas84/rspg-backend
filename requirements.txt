@@ -1,0 +1,15 @@
+# (Content from previous response - unchanged)
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+pydantic[email]
+pydantic-settings
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+python-dotenv
+alembic
+aiosqlite # For SQLite async support (dev)
+asyncpg # For PostgreSQL async support (prod)
+anthropic # For Claude LLM
+jinja2
