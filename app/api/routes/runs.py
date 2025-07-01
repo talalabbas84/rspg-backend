@@ -4,13 +4,16 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import schemas, models
-from app.crud import crud_block, crud_run, crud_sequence
+from app.crud import crud_block, crud_run, crud_sequence, crud_variable
 from app.api import deps
 from app.db.session import get_db
+from app.models.variable import VariableTypeEnum
 from app.schemas.run import BlockRunCreate
 from app.services import execution_engine # For triggering execution
 from sqlalchemy import select
 from datetime import datetime, timezone
+from app.crud.crud_variable import variable
+
 
 import json
 
@@ -171,6 +174,8 @@ async def rerun_from_block(
             context[block_run.list_outputs_json["name"]] = block_run.list_outputs_json["values"]
         if block_run.matrix_outputs_json:
             context[block_run.matrix_outputs_json["name"]] = block_run.matrix_outputs_json["values"]
+            
+    print("Context before rerun:", context)  # Debugging line
     context.update(input_overrides)
 
     # Create a new run object for rerun
@@ -192,6 +197,17 @@ async def rerun_from_block(
          named_outputs_db, list_outputs_db, matrix_outputs_db, error_message) = await execution_engine._execute_single_block_logic(
             db, block, context, sequence.default_llm_model
         )
+        # For each output variable, upsert it as a variable in DB
+        for output_var, value in block_output_data.items():
+            await variable.upsert_variable(
+                db=db,
+                name=output_var,
+                value=value,
+                user_id=current_user.id,
+                sequence_id=sequence.id,
+                type=VariableTypeEnum.OUTPUT._value_   # or .INPUT if you prefer, but .GLOBAL is typical for outputs
+            )
+
         db_block_run.prompt_text = rendered_prompt
         db_block_run.llm_output_text = llm_raw_output
         db_block_run.named_outputs_json = named_outputs_db

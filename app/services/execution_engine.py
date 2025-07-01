@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from app import models
 from app.crud import crud_block, crud_variable, crud_run, crud_global_list, crud_sequence
 from app.models.run import Run, RunStatusEnum
+from app.models.variable import VariableTypeEnum
 from app.services.llm_interface import call_claude_api
 from app.services.prompt_utils import render_prompt, discretize_output
 from app.schemas.run import BlockRunCreate
@@ -16,10 +17,31 @@ import json
 from datetime import datetime, timezone
 import logging
 from typing import Dict, Any, Tuple, List, Optional, Union
+from app.crud.crud_variable import variable
+
 
 logger = logging.getLogger(__name__)
 
 import re
+def get_context_value(context, name):
+    # Try exact match, normalized, and lowercased, and finally scan all keys for a case-insensitive match.
+    norm_name = _normalize_key(name)
+    for try_key in [
+        name,
+        norm_name,
+        name.strip(),
+        norm_name.strip(),
+        name.lower(),
+        norm_name.lower()
+    ]:
+        if try_key in context:
+            return context[try_key]
+    # Fallback: scan all keys for best-effort match (case-insensitive)
+    for k, v in context.items():
+        if k.lower() == name.lower() or k.lower() == norm_name.lower():
+            return v
+    return None
+
 
 def _normalize_key(key: str) -> str:
     """Convert key to snake_case, remove special chars, lower."""
@@ -122,7 +144,25 @@ async def _execute_single_block_logic(
         
         elif block.type == models.BlockTypeEnum.SINGLE_LIST:
             config = BlockConfigSingleList(**block_config_dict)
-            input_list = current_context.get(config.input_list_variable_name)
+            # Add a fallback to try all context keys for lists
+            input_list = get_context_value(current_context, config.input_list_variable_name)
+            if not isinstance(input_list, list):
+                # Fallback: find any context value that is a list with 3 strings, and log the candidates.
+                list_candidates = {k: v for k, v in current_context.items() if isinstance(v, list)}
+                print("DEBUG list_candidates:", list_candidates)
+                # If only one candidate, pick it
+                if len(list_candidates) == 1:
+                    input_list = list(list_candidates.values())[0]
+                else:
+                    input_list = None
+
+            if not isinstance(input_list, list):
+                raise ValueError(
+                    f"Input '{config.input_list_variable_name}' for Single List block is not a list or not found. "
+                    f"Available keys: {list(current_context.keys())}. "
+                    f"Found value: {input_list} (type: {type(input_list)})"
+                )
+
             if not isinstance(input_list, list):
                 raise ValueError(f"Input '{config.input_list_variable_name}' for Single List block is not a list or not found. Found type: {type(input_list)}.")
             print(f"Input list for block {block.id} ('{block.name}'): {input_list}")  # Debug: print input list
@@ -257,6 +297,17 @@ async def execute_sequence(
          named_outputs_db, list_outputs_db, matrix_outputs_db, error_message) = await _execute_single_block_logic(
             db, block, current_context, sequence_default_llm_model
         )
+         
+        for output_var, value in block_output_data.items():
+            await variable.upsert_variable(
+                db=db,
+                name=output_var,
+                value=value,
+                user_id=run_obj.user_id,
+                sequence_id=run_obj.sequence_id,
+                type=VariableTypeEnum.OUTPUT._value_
+            )
+
 
         db_block_run.prompt_text = rendered_prompt
         db_block_run.llm_output_text = llm_raw_output
@@ -402,6 +453,16 @@ async def execute_single_block(
      named_outputs_db, list_outputs_db, matrix_outputs_db, error_message) = await _execute_single_block_logic(
         db, block, context, sequence_default_llm_model
     )
+    
+    for output_var, value in block_output_data.items():
+            await variable.upsert_variable(
+                db=db,
+                name=output_var,
+                value=value,
+                user_id=user_id,
+                sequence_id=sequence.id,
+                type=VariableTypeEnum.OUTPUT._value_
+            )
      
    
     # Create and save a BlockRun (no parent run in this mode)

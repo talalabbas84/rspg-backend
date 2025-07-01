@@ -6,6 +6,7 @@ from app.db.base import Base
 class VariableTypeEnum(str, enum.Enum):
     GLOBAL = "global"    # User-defined global variable (user-wide or sequence-wide)
     INPUT = "input"      # Expected at runtime for the sequence
+    OUTPUT = "output"    # Produced by the sequence (e.g., final result)
     # Future: You can add more types if needed
 
 class Variable(Base):

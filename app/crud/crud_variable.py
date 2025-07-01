@@ -1,10 +1,11 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.crud.base import CRUDBase
 from app.models.variable import Variable, VariableTypeEnum
 from app.schemas.variable import VariableCreate, VariableUpdate
+
 
 class CRUDVariable(CRUDBase[Variable, VariableCreate, VariableUpdate]):
     async def get_by_name_and_sequence(
@@ -56,12 +57,38 @@ class CRUDVariable(CRUDBase[Variable, VariableCreate, VariableUpdate]):
     
     async def create_with_owner(
         self, db: AsyncSession, *, obj_in: VariableCreate, user_id: int
-    ) -> Variable:
-        obj_in_data = obj_in.model_dump()  # Pydantic v2
-        db_obj = self.model(**obj_in_data, user_id=user_id)
-        db.add(db_obj)
-        await db.commit()
-        await db.refresh(db_obj)
-        return db_obj
+        ) -> Variable:
+            obj_in_data = obj_in.model_dump()  # Pydantic v2
+            db_obj = self.model(**obj_in_data, user_id=user_id)
+            db.add(db_obj)
+            await db.commit()
+            await db.refresh(db_obj)
+            return db_obj
+
+    async def upsert_variable(self, db: AsyncSession, name: str, value: Any, user_id: int, sequence_id: int = None, type: VariableTypeEnum = VariableTypeEnum.GLOBAL):
+        q = select(Variable).where(
+            Variable.name == name,
+            Variable.user_id == user_id,
+            Variable.sequence_id == sequence_id,
+            Variable.type == type,
+        )
+        result = await db.execute(q)
+        var = result.scalars().first()
+        if var:
+            var.value_json = {"value": value}
+            db.add(var)
+            await db.flush()
+            return var
+        else:
+            var = Variable(
+                name=name,
+                type=type,
+                user_id=user_id,
+                sequence_id=sequence_id,
+                value_json={"value": value}
+            )
+            db.add(var)
+            await db.flush()
+            return var
 
 variable = CRUDVariable(Variable)

@@ -169,11 +169,11 @@ async def list_available_variables_for_sequence(
 ) -> Any:
     """
     List all variables available for use in a sequence's prompts.
-    Now includes: .value for preview in UI!
+    Now only includes: sequence vars, user global vars, user global lists.
     """
     available_vars_dict: Dict[str, dict] = {}
 
-    # 1. Sequence-defined GLOBAL and INPUT vars
+    # 1. Sequence-defined variables (GLOBAL and INPUT)
     seq_vars = await crud_variable.variable.get_multi_by_sequence(db, sequence_id=owned_sequence.id)
     for var in seq_vars:
         val = None
@@ -215,51 +215,6 @@ async def list_available_variables_for_sequence(
                 "value": val
             }
 
-    # 4. Outputs from Blocks within this sequence
-    sequence_blocks = await crud_block.block.get_multi_by_sequence(db, sequence_id=owned_sequence.id)
-    for block_model in sequence_blocks:
-        config = block_model.config_json
-        block_source_name = f"Block: {block_model.name} (Order: {block_model.order})"
-        if block_model.type == models.BlockTypeEnum.STANDARD:
-            cfg = schemas.BlockConfigStandard(**config)
-            if cfg.output_variable_name not in available_vars_dict:
-                available_vars_dict[cfg.output_variable_name] = {
-                    "name": cfg.output_variable_name,
-                    "type": "block_output",
-                    "source": block_source_name,
-                    "description": f"Output of '{block_model.name}'",
-                    "value": None  # Could add "last run" value if you want, but needs a query!
-                }
-        elif block_model.type == models.BlockTypeEnum.DISCRETIZATION:
-            cfg = schemas.BlockConfigDiscretization(**config)
-            for name in cfg.output_names:
-                if name not in available_vars_dict:
-                    available_vars_dict[name] = {
-                        "name": name,
-                        "type": "block_output",
-                        "source": f"{block_source_name} (Discretized)",
-                        "description": f"Discretized output '{name}' from '{block_model.name}'",
-                        "value": None
-                    }
-        elif block_model.type == models.BlockTypeEnum.SINGLE_LIST:
-            cfg = schemas.BlockConfigSingleList(**config)
-            if cfg.output_list_variable_name not in available_vars_dict:
-                available_vars_dict[cfg.output_list_variable_name] = {
-                    "name": cfg.output_list_variable_name,
-                    "type": "list_output",
-                    "source": block_source_name,
-                    "description": f"List output of '{block_model.name}'",
-                    "value": None
-                }
-        elif block_model.type == models.BlockTypeEnum.MULTI_LIST:
-            cfg = schemas.BlockConfigMultiList(**config)
-            if cfg.output_matrix_variable_name not in available_vars_dict:
-                available_vars_dict[cfg.output_matrix_variable_name] = {
-                    "name": cfg.output_matrix_variable_name,
-                    "type": "matrix_output",
-                    "source": block_source_name,
-                    "description": f"Matrix output of '{block_model.name}'",
-                    "value": None
-                }
+    # Removed block output code!
 
     return list(available_vars_dict.values())
