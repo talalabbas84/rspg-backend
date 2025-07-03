@@ -57,7 +57,6 @@ async def create_run_for_sequence(
         },
         user_id=current_user.id
     )
-    print(run_in, 'run_in.input_overrides_json', run_in.input_overrides_json)  # Debugging line
     try:
         updated_run = await execution_engine.execute_sequence(
             db=db,
@@ -175,7 +174,6 @@ async def rerun_from_block(
         if block_run.matrix_outputs_json:
             context[block_run.matrix_outputs_json["name"]] = block_run.matrix_outputs_json["values"]
             
-    print("Context before rerun:", context)  # Debugging line
     context.update(input_overrides)
 
     # Create a new run object for rerun
@@ -307,6 +305,18 @@ async def edit_block_run_output(
         if br.matrix_outputs_json:
             summary[f"block_{br.block_id}_{br.block_name_snapshot}"] = br.matrix_outputs_json
     run.results_summary_json = summary
+    
+       # ----------- THIS IS NEW: update output variables as well -----------
+    if block_run.named_outputs_json:
+        for var_name, value in block_run.named_outputs_json.items():
+            await variable.upsert_variable(
+                db=db,
+                name=var_name,
+                value=value,
+                user_id=current_user.id,
+                sequence_id=run.sequence_id,
+                type=VariableTypeEnum.OUTPUT.value
+            )
     await db.commit()
     await db.refresh(run)
 

@@ -41,7 +41,6 @@ async def read_user_global_variables(
     """
     List all user-global variables for current user.
     """
-    print("Fetching user-global variables for user:", current_user.id)
     variables = await crud_variable.variable.get_multi_by_user(db, user_id=current_user.id)
     return [v for v in variables if v.sequence_id is None]
 

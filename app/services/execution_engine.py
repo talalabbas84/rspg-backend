@@ -128,7 +128,6 @@ async def _execute_single_block_logic(
     try:
         if block.type == models.BlockTypeEnum.STANDARD:
             config = BlockConfigStandard(**block_config_dict)
-            print(config.prompt, current_context, 'checkkkk thissssss')  # Debug: print the prompt template
             rendered_prompt_text = render_prompt(config.prompt, current_context)
             llm_raw_output_text = await call_claude_api(rendered_prompt_text, model=effective_model)
             output_data_for_context[config.output_variable_name] = llm_raw_output_text
@@ -149,7 +148,6 @@ async def _execute_single_block_logic(
             if not isinstance(input_list, list):
                 # Fallback: find any context value that is a list with 3 strings, and log the candidates.
                 list_candidates = {k: v for k, v in current_context.items() if isinstance(v, list)}
-                print("DEBUG list_candidates:", list_candidates)
                 # If only one candidate, pick it
                 if len(list_candidates) == 1:
                     input_list = list(list_candidates.values())[0]
@@ -165,8 +163,7 @@ async def _execute_single_block_logic(
 
             if not isinstance(input_list, list):
                 raise ValueError(f"Input '{config.input_list_variable_name}' for Single List block is not a list or not found. Found type: {type(input_list)}.")
-            print(f"Input list for block {block.id} ('{block.name}'): {input_list}")  # Debug: print input list
-            print("config", config)  # Debug: print block config
+            
             
             item_results = []
             rendered_prompt_text = f"Single List Block. Template: {config.prompt[:100]}... on list '{config.input_list_variable_name}' ({len(input_list)} items)."
@@ -258,7 +255,6 @@ async def execute_sequence(
     if not sequence_obj:
         raise ValueError("Sequence not found.")
     
-    print("input_overrides_json in execute_sequence:", input_overrides_json)  # Debug: print input overrides
 
     run_obj.status = models.RunStatusEnum.RUNNING
     run_obj.started_at = datetime.now(timezone.utc)

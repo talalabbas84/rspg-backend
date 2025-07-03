@@ -60,7 +60,9 @@ async def create_block_in_sequence(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail="Each input_lists_config.name for MULTI_LIST must be a single variable name (not a list/CSV of values)."
                     )
-
+    existing_blocks = await crud_block.block.get_multi_by_sequence(db, sequence_id=sequence_id)
+    next_order = max([block.order for block in existing_blocks], default=0) + 1
+    block_in.order = next_order
     # Continue as normal
     block = await crud_block.block.create(db=db, obj_in=block_in)
     return block
@@ -117,8 +119,8 @@ async def update_block(
     _ = await get_owned_sequence(sequence_id=db_block.sequence_id, db=db, current_user=current_user)
     
     # ---- Ignore 'order' field if present ----
-    block_in_data = block_in.dict(exclude_unset=True)  # Only fields that were sent
-    block_in_data.pop('order', None)  # Remove order if present
+    block_in_data = block_in.dict(exclude_unset=True)
+    block_in_data.pop('order', None)  # Always remove unless reordering feature is built
 
     # Create a new BlockUpdate with the sanitized dict
     sanitized_block_in = schemas.BlockUpdate(**block_in_data)
@@ -170,7 +172,6 @@ async def run_single_block(
     if not sequence or sequence.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
     try:
-        print(f"Running block {block_id} with input overrides: {input_overrides}")
         block_run = await execute_single_block(
             db=db,
             block=block,

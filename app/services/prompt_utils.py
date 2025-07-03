@@ -57,6 +57,7 @@ def discretize_output(llm_output: str, output_names: List[str]) -> Dict[str, str
 
     if not llm_output or not output_names:
         return named_outputs
+    
 
     # --- Step 1: Robustly extract JSON object from anywhere in the string ---
     json_block = None
@@ -67,8 +68,14 @@ def discretize_output(llm_output: str, output_names: List[str]) -> Dict[str, str
             json_block = match.group()
             data = json.loads(json_block)
             if isinstance(data, dict):
-                for name in output_names:
-                    named_outputs[name] = str(data.get(name, "")) if data.get(name) is not None else ""
+                data_values = list(data.values())
+                for i, name in enumerate(output_names):
+                    if name in data:
+                        named_outputs[name] = str(data[name])
+                    elif i < len(data_values):
+                        named_outputs[name] = str(data_values[i])
+                    else:
+                        named_outputs[name] = ""
                 return named_outputs
     except Exception as e:
         logger.debug(f"Failed to robustly extract JSON from LLM output: {e}")
