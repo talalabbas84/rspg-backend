@@ -24,16 +24,16 @@ app = FastAPI(
 )
 
 # Set all CORS enabled origins
-if settings.BACKEND_CORS_ORIGINS:
-    app.add_middleware(
+# if settings.BACKEND_CORS_ORIGINS:
+app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin).strip() for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_origins=["*"],  # settings.BACKEND_CORS_ORIGINS
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-else:
-    logger.warning("CORS origins not configured. API might not be accessible from frontend.")
+# else:
+#     logger.warning("CORS origins not configured. API might not be accessible from frontend.")
 
 
 # Include API routers

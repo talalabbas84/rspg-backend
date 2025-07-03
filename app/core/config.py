@@ -18,19 +18,19 @@ class Settings(BaseSettings):
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = []
 
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v: Any) -> List[str]:
-        if isinstance(v, str):
-            # Handle both JSON array and comma-separated
-            import json
-            try:
-                origins = json.loads(v)
-                if isinstance(origins, list):
-                    return origins
-            except Exception:
-                return [i.strip() for i in v.split(",")]
-        return v
+    # @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    # @classmethod
+    # def parse_cors_origins(cls, v: Any) -> List[str]:
+    #     if isinstance(v, str):
+    #         # Handle both JSON array and comma-separated
+    #         import json
+    #         try:
+    #             origins = json.loads(v)
+    #             if isinstance(origins, list):
+    #                 return origins
+    #         except Exception:
+    #             return [i.strip() for i in v.split(",")]
+    #     return v
 
     # LLM API Key
     CLAUDE_API_KEY: str
