@@ -29,6 +29,7 @@ class BlockRunRead(BlockRunBase):
     id: int
     run_id: int
     block_id: Optional[int] = None # Original block might have been deleted
+    prompt_text: Optional[str]
     block_name_snapshot: Optional[str] = None
     block_type_snapshot: Optional[BlockTypeEnum] = None
     created_at: datetime # From Base model
@@ -62,6 +63,7 @@ class RunRead(RunBase):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     results_summary_json: Optional[Dict[str, Any]] = None
+    prompt_text: Optional[str] = None
     error_message: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
